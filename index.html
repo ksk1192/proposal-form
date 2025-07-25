@@ -5,84 +5,64 @@
   <title>改善提案フォーム</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <style>
-    body {
-      font-family: sans-serif;
-      margin: 1em;
-    }
-    form {
-      max-width: 600px;
-      width: 100%;
-      margin: auto;
-    }
-    input, textarea, button {
-      width: 100%;
-      font-size: 16px;
-      padding: 0.6em;
-      box-sizing: border-box;
-    }
-    button {
-      min-height: 44px;
-      margin-top: 1em;
-    }
+    body { font-family: sans-serif; margin: 1em; }
+    form { max-width: 600px; width: 100%; margin: auto; }
+    input, textarea, button { width: 100%; font-size: 16px; padding: 0.6em; box-sizing: border-box; }
+    button { min-height: 44px; margin-top: 1em; }
   </style>
 </head>
 <body>
   <form id="proposalForm"
         method="GET"
-        action="mailto:kaizen@yourcompany.co.jp"
+        action=""
         enctype="text/plain">
-    
     <div>
       <label for="date">提出日</label>
       <input type="date" id="date" name="date" required>
     </div>
-
     <div>
       <label for="name">提出者氏名</label>
       <input type="text" id="name" name="name"
              placeholder="例：山田 太郎" required>
     </div>
-
     <div>
       <label for="title">議題タイトル</label>
       <input type="text" id="title" name="title"
              placeholder="例：会議資料のデジタル化" required>
     </div>
-
     <div>
       <label for="current">背景：現状</label>
       <textarea id="current" name="current" required></textarea>
     </div>
-
     <div>
       <label for="proposal">改善案（具体的内容）</label>
       <textarea id="proposal" name="proposal" required></textarea>
     </div>
-
     <div>
       <label for="effect">期待される効果（定量／定性）</label>
       <textarea id="effect" name="effect" required></textarea>
     </div>
-
     <div>
       <label for="cost">必要コスト・リソース</label>
       <textarea id="cost" name="cost" required></textarea>
     </div>
-
     <button type="submit">送信</button>
   </form>
 
   <script>
+    // ここだけ書き換えればメール送信先を変更できる
+    const MAILTO_ADDRESS = "kaizen@yourcompany.co.jp";
+
     document.getElementById('proposalForm')
       .addEventListener('submit', function(e) {
-        // 議題タイトルを取得し、件名パラメータに追加
-        var titleInput = document.querySelector('input[name="title"]');
-        var subject = '【改善提案】' + titleInput.value;
-        // エンコードして action 属性を更新
-        this.action = 'keisuke.tojyo@shinko-jp.biz'
-                    + '?subject=' + encodeURIComponent(subject);
+        // 議題タイトルから件名を生成
+        const title = document.getElementById('title').value.trim();
+        const subject = "【改善提案】" + title;
+
+        // mailto リンクを組み立て
+        this.action = "mailto:" + MAILTO_ADDRESS
+                    + "?subject=" + encodeURIComponent(subject);
       });
   </script>
 </body>
 </html>
-
