@@ -4,56 +4,62 @@
   <meta charset="UTF-8">
   <title>改善提案フォーム</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <!-- CSP ヘッダー相当 -->
+  <meta http-equiv="Content-Security-Policy"
+        content="
+          default-src 'self';
+          script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/;
+          style-src 'self';
+          img-src 'self';
+          object-src 'none';
+          base-uri 'self';
+          form-action 'self';
+        ">
+
   <style>
-    body { 
-      font-family: sans-serif; 
-      margin: 1em; 
-    }
-    form { 
-      max-width: 600px; 
-      width: 100%; 
-      margin: auto; 
-    }
-    input, textarea, button { 
-      width: 100%; 
-      font-size: 16px; 
-      padding: 0.6em; 
-      box-sizing: border-box; 
-      margin-top: 0.5em;
-    }
-    button { 
-      min-height: 44px; 
-      margin-top: 1em; 
-    }
-    label { 
-      font-weight: bold; 
-      display: block; 
-      margin-top: 1em; 
-    }
+    body { font-family: sans-serif; margin: 1em; }
+    form { max-width: 600px; width: 100%; margin: auto; }
+    input, textarea, button { width: 100%; font-size: 16px; padding: 0.6em; box-sizing: border-box; margin-top: 0.5em; }
+    button { min-height: 44px; margin-top: 1em; }
+    label { font-weight: bold; display: block; margin-top: 1em; }
+    .hidden { display: none !important; }
+    .error { color: red; margin-top: 0.5em; }
   </style>
+
+  <!-- reCAPTCHA -->
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
-  <form id="proposalForm">
+
+  <form id="proposalForm" action="/api/proposal" method="POST" novalidate>
+    <!-- Honeypot -->
+    <label class="hidden" for="hp_phone">電話番号（入力しないでください）</label>
+    <input type="text" id="hp_phone" name="hp_phone" autocomplete="off" class="hidden">
+
     <label for="date">提出日</label>
     <input type="date" id="date" name="date" required>
 
     <label for="name">提出者氏名</label>
-    <input type="text" id="name" name="name" placeholder="例：山田 太郎" required>
+    <input type="text" id="name" name="name" placeholder="例：山田 太郎" maxlength="50" required>
 
     <label for="title">議題タイトル</label>
-    <input type="text" id="title" name="title" placeholder="例：会議資料のデジタル化" required>
+    <input type="text" id="title" name="title" placeholder="例：会議資料のデジタル化" maxlength="100" required>
 
     <label for="current">背景：現状</label>
-    <textarea id="current" name="current" required></textarea>
+    <textarea id="current" name="current" maxlength="1000" required></textarea>
 
     <label for="proposal">改善案（具体的内容）</label>
-    <textarea id="proposal" name="proposal" required></textarea>
+    <textarea id="proposal" name="proposal" maxlength="1000" required></textarea>
 
     <label for="effect">期待される効果（定量／定性）</label>
-    <textarea id="effect" name="effect" required></textarea>
+    <textarea id="effect" name="effect" maxlength="1000" required></textarea>
 
     <label for="cost">必要コスト・リソース</label>
-    <textarea id="cost" name="cost" required></textarea>
+    <textarea id="cost" name="cost" maxlength="1000" required></textarea>
+
+    <div class="g-recaptcha" data-sitekey="YOUR_SITE_KEY"></div>
+    <div id="errorMsg" class="error hidden"></div>
 
     <button type="submit">送信</button>
   </form>
@@ -61,43 +67,75 @@
   <script>
     (function() {
       const form = document.getElementById('proposalForm');
-      const MAILTO_ADDRESS = "keisuke.tojyo@shinko-jp.biz";
+      const errorMsg = document.getElementById('errorMsg');
 
-      form.addEventListener('submit', function(e) {
+      // 入力サニタイズ
+      function sanitize(str) {
+        return str.replace(/<[^>]*>?/gm, '').trim();
+      }
+
+      // バリデーション＆サニタイズ
+      function validateField(id, maxLen) {
+        const el = document.getElementById(id);
+        let v = sanitize(el.value);
+        if (!v || v.length > maxLen) {
+          throw `「${el.previousElementSibling.textContent}」は1〜${maxLen}文字で入力してください。`;
+        }
+        return v;
+      }
+
+      form.addEventListener('submit', async function(e) {
         e.preventDefault();
+        errorMsg.classList.add('hidden');
+        errorMsg.textContent = '';
 
-        const date     = document.getElementById('date').value;
-        const name     = document.getElementById('name').value.trim();
-        const title    = document.getElementById('title').value.trim();
-        const current  = document.getElementById('current').value.trim();
-        const proposal = document.getElementById('proposal').value.trim();
-        const effect   = document.getElementById('effect').value.trim();
-        const cost     = document.getElementById('cost').value.trim();
+        try {
+          // Honeypot チェック
+          if (document.getElementById('hp_phone').value) {
+            throw 'Botによる送信が検出されました。';
+          }
 
-        const bodyLines = [
-          `提出日: ${date}`,
-          `提出者氏名: ${name}`,
-          `議題タイトル: ${title}`,
-          `背景：現状`,
-          current,
-          `改善案（具体的内容）`,
-          proposal,
-          `期待される効果（定量／定性）`,
-          effect,
-          `必要コスト・リソース`,
-          cost
-        ];
+          // 日付チェック
+          const date = document.getElementById('date').value;
+          if (!date) throw '提出日を選択してください。';
 
-        const subject  = "【改善提案】" + title;
-        const bodyText = bodyLines.join('\n\n');
+          // 各フィールド検証
+          const payload = {
+            date,
+            name:     validateField('name', 50),
+            title:    validateField('title', 100),
+            current:  validateField('current', 1000),
+            proposal: validateField('proposal', 1000),
+            effect:   validateField('effect', 1000),
+            cost:     validateField('cost', 1000),
+            'g-recaptcha-response': grecaptcha.getResponse()
+          };
 
-        // メールクライアントを起動
-        const mailtoLink =
-          `mailto:${MAILTO_ADDRESS}` +
-          `?subject=${encodeURIComponent(subject)}` +
-          `&body=${encodeURIComponent(bodyText)}`;
+          if (!payload['g-recaptcha-response']) {
+            throw 'reCAPTCHA のチェックを完了してください。';
+          }
 
-        window.location.href = mailtoLink;
+          // サーバサイド送信（Fetch API）
+          const res = await fetch(form.action, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            credentials: 'same-origin'  // CSRFクッキー送信など
+          });
+
+          if (!res.ok) {
+            const err = await res.text();
+            throw err || 'サーバーエラーが発生しました。';
+          }
+
+          alert('送信が完了しました。');
+          form.reset();
+          grecaptcha.reset();
+        }
+        catch (err) {
+          errorMsg.textContent = err;
+          errorMsg.classList.remove('hidden');
+        }
       });
     })();
   </script>
