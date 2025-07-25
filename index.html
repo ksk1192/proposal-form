@@ -3,40 +3,86 @@
 <head>
   <meta charset="UTF-8">
   <title>改善提案フォーム</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- CSP ヘッダー相当 -->
-  <meta http-equiv="Content-Security-Policy"
-        content="
-          default-src 'self';
-          script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/;
-          style-src 'self';
-          img-src 'self';
-          object-src 'none';
-          base-uri 'self';
-          form-action 'self';
-        ">
-
+  <!-- CSP（省略） -->
   <style>
-    body { font-family: sans-serif; margin: 1em; }
-    form { max-width: 600px; width: 100%; margin: auto; }
-    input, textarea, button { width: 100%; font-size: 16px; padding: 0.6em; box-sizing: border-box; margin-top: 0.5em; }
-    button { min-height: 44px; margin-top: 1em; }
-    label { font-weight: bold; display: block; margin-top: 1em; }
-    .hidden { display: none !important; }
-    .error { color: red; margin-top: 0.5em; }
-  </style>
+    /* 1. リセット＆ボックスサイズ統一 */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-  <!-- reCAPTCHA -->
-  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    /* 2. ページ全体余白 */
+    html, body {
+      width: 100%;
+      min-height: 100%;
+      font-family: sans-serif;
+      line-height: 1.5;
+    }
+    body {
+      padding: 16px;
+    }
+
+    /* 3. フォームコンテナ */
+    form {
+      max-width: 600px;
+      margin: auto;
+      background: #fff;
+      padding: 16px;
+      border-radius: 4px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.05);
+    }
+
+    /* 4. ラベルと入力要素 */
+    label {
+      display: block;
+      margin-top: 1em;
+      font-weight: bold;
+    }
+    input,
+    textarea,
+    button {
+      width: 100%;
+      font-size: 16px;       /* iOSでのズーム防止 */
+      padding: 0.75em;
+      margin-top: 0.25em;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 120px;
+    }
+    button {
+      margin-top: 1.25em;
+      background: #0078D4;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+    button:active {
+      background: #005A9E;
+    }
+
+    /* 5. スマホ向け微調整 */
+    @media (max-width: 480px) {
+      body {
+        padding: 12px;
+      }
+      input,
+      textarea,
+      button {
+        font-size: 18px;
+        padding: 0.85em;
+      }
+    }
+  </style>
 </head>
 <body>
 
   <form id="proposalForm" action="/api/proposal" method="POST" novalidate>
-    <!-- Honeypot -->
-    <label class="hidden" for="hp_phone">電話番号（入力しないでください）</label>
-    <input type="text" id="hp_phone" name="hp_phone" autocomplete="off" class="hidden">
-
     <label for="date">提出日</label>
     <input type="date" id="date" name="date" required>
 
@@ -58,86 +104,8 @@
     <label for="cost">必要コスト・リソース</label>
     <textarea id="cost" name="cost" maxlength="1000" required></textarea>
 
-    <div class="g-recaptcha" data-sitekey="YOUR_SITE_KEY"></div>
-    <div id="errorMsg" class="error hidden"></div>
-
     <button type="submit">送信</button>
   </form>
 
-  <script>
-    (function() {
-      const form = document.getElementById('proposalForm');
-      const errorMsg = document.getElementById('errorMsg');
-
-      // 入力サニタイズ
-      function sanitize(str) {
-        return str.replace(/<[^>]*>?/gm, '').trim();
-      }
-
-      // バリデーション＆サニタイズ
-      function validateField(id, maxLen) {
-        const el = document.getElementById(id);
-        let v = sanitize(el.value);
-        if (!v || v.length > maxLen) {
-          throw `「${el.previousElementSibling.textContent}」は1〜${maxLen}文字で入力してください。`;
-        }
-        return v;
-      }
-
-      form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        errorMsg.classList.add('hidden');
-        errorMsg.textContent = '';
-
-        try {
-          // Honeypot チェック
-          if (document.getElementById('hp_phone').value) {
-            throw 'Botによる送信が検出されました。';
-          }
-
-          // 日付チェック
-          const date = document.getElementById('date').value;
-          if (!date) throw '提出日を選択してください。';
-
-          // 各フィールド検証
-          const payload = {
-            date,
-            name:     validateField('name', 50),
-            title:    validateField('title', 100),
-            current:  validateField('current', 1000),
-            proposal: validateField('proposal', 1000),
-            effect:   validateField('effect', 1000),
-            cost:     validateField('cost', 1000),
-            'g-recaptcha-response': grecaptcha.getResponse()
-          };
-
-          if (!payload['g-recaptcha-response']) {
-            throw 'reCAPTCHA のチェックを完了してください。';
-          }
-
-          // サーバサイド送信（Fetch API）
-          const res = await fetch(form.action, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-            credentials: 'same-origin'  // CSRFクッキー送信など
-          });
-
-          if (!res.ok) {
-            const err = await res.text();
-            throw err || 'サーバーエラーが発生しました。';
-          }
-
-          alert('送信が完了しました。');
-          form.reset();
-          grecaptcha.reset();
-        }
-        catch (err) {
-          errorMsg.textContent = err;
-          errorMsg.classList.remove('hidden');
-        }
-      });
-    })();
-  </script>
 </body>
 </html>
