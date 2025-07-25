@@ -5,7 +5,7 @@
   <title>改善提案フォーム</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <!-- Content Security Policy -->
+  <!-- コンテンツセキュリティポリシー -->
   <meta http-equiv="Content-Security-Policy"
         content="
           default-src 'self';
@@ -13,61 +13,114 @@
           style-src 'self';
           object-src 'none';
           base-uri 'self';
+          form-action 'self';
         ">
 
   <style>
-    body { 
-      font-family: sans-serif; 
-      margin: 1em; 
+    /* 1. リセット & ボックスサイズ統一 */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
-    form { 
-      max-width: 600px; 
-      width: 100%; 
-      margin: auto; 
+
+    /* 2. iOS Safari テキスト自動ズーム防止 */
+    html {
+      -webkit-text-size-adjust: 100%;
     }
-    input, textarea, button { 
-      width: 100%; 
-      font-size: 16px; 
-      padding: 0.6em; 
-      box-sizing: border-box; 
+
+    /* 3. セーフエリア対応 */
+    body {
+      font-family: sans-serif;
+      padding: 1em;
+      padding-top: calc(env(safe-area-inset-top, 0) + 1em);
+      padding-bottom: calc(env(safe-area-inset-bottom, 0) + 1em);
+      background: #fafafa;
+    }
+
+    /* 4. フォーム構成 */
+    form {
+      max-width: 600px;
+      width: 100%;
+      margin: auto;
+      background: #fff;
+      padding: 1em;
+      border-radius: 4px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.05);
+    }
+
+    /* 5. ラベル & 要素スタイル */
+    label {
+      display: block;
+      font-weight: bold;
+      margin-top: 1em;
+    }
+
+    input,
+    textarea,
+    button {
+      width: 100%;
+      font-size: 16px;            /* iOS ズーム防止 */
+      padding: 0.6em;
       margin-top: 0.5em;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fff;
+      -webkit-appearance: none;   /* Safari ネイティブリセット */
+      appearance: none;
     }
-    button { 
-      min-height: 44px; 
-      margin-top: 1em; 
+
+    textarea {
+      resize: vertical;
+      min-height: 120px;
     }
-    label { 
-      font-weight: bold; 
-      display: block; 
-      margin-top: 1em; 
+
+    button {
+      margin-top: 1em;
+      min-height: 44px;
+      background: #0078D4;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:active {
+      background: #005A9E;
     }
   </style>
 </head>
 <body>
-  <form id="proposalForm">
-    <!-- Honeypot field (bot 対策) -->
-    <input type="text" id="hp_phone" name="hp_phone" autocomplete="off" style="display:none">
+  <form id="proposalForm" novalidate>
+    <!-- Honeypot（bot 対策） -->
+    <input type="text" id="hp_phone" name="hp_phone"
+           autocomplete="off" style="display: none !important;">
 
     <label for="date">提出日</label>
     <input type="date" id="date" name="date" required>
 
     <label for="name">提出者氏名</label>
-    <input type="text" id="name" name="name" placeholder="例：山田 太郎" maxlength="50" required>
+    <input type="text" id="name" name="name"
+           placeholder="例：山田 太郎" maxlength="50" required>
 
     <label for="title">議題タイトル</label>
-    <input type="text" id="title" name="title" placeholder="例：会議資料のデジタル化" maxlength="100" required>
+    <input type="text" id="title" name="title"
+           placeholder="例：会議資料のデジタル化" maxlength="100" required>
 
     <label for="current">背景：現状</label>
-    <textarea id="current" name="current" maxlength="1000" required></textarea>
+    <textarea id="current" name="current"
+              maxlength="1000" required></textarea>
 
     <label for="proposal">改善案（具体的内容）</label>
-    <textarea id="proposal" name="proposal" maxlength="1000" required></textarea>
+    <textarea id="proposal" name="proposal"
+              maxlength="1000" required></textarea>
 
     <label for="effect">期待される効果（定量／定性）</label>
-    <textarea id="effect" name="effect" maxlength="1000" required></textarea>
+    <textarea id="effect" name="effect"
+              maxlength="1000" required></textarea>
 
     <label for="cost">必要コスト・リソース</label>
-    <textarea id="cost" name="cost" maxlength="1000" required></textarea>
+    <textarea id="cost" name="cost"
+              maxlength="1000" required></textarea>
 
     <button type="submit">送信</button>
   </form>
@@ -77,22 +130,23 @@
       const form = document.getElementById('proposalForm');
       const MAILTO_ADDRESS = "keisuke.tojyo@shinko-jp.biz";
 
+      // サニタイズ（タグ除去）
       function sanitize(str) {
         return str.replace(/<[^>]*>?/gm, '').trim();
       }
 
+      // フィールドごとにバリデート＆サニタイズ
       function validateField(id, maxLen) {
         const el = document.getElementById(id);
         const v = sanitize(el.value);
         if (!v || v.length > maxLen) {
-          throw `${el.previousElementSibling.textContent} は 1〜${maxLen}文字で入力してください。`;
+          throw `${el.previousElementSibling.textContent} は1〜${maxLen}文字で入力してください。`;
         }
         return v;
       }
 
       form.addEventListener('submit', function(e) {
         e.preventDefault();
-
         try {
           // Honeypot チェック
           if (document.getElementById('hp_phone').value) {
@@ -105,7 +159,7 @@
             throw '提出日を選択してください。';
           }
 
-          // 各フィールドのバリデーション＆サニタイズ
+          // 各フィールド検証
           const name     = validateField('name', 50);
           const title    = validateField('title', 100);
           const current  = validateField('current', 1000);
@@ -113,32 +167,28 @@
           const effect   = validateField('effect', 1000);
           const cost     = validateField('cost', 1000);
 
-          // メール本文組み立て
+          // メール本文生成
           const bodyLines = [
             `提出日: ${date}`,
             `提出者氏名: ${name}`,
             `議題タイトル: ${title}`,
-            `背景：現状`,
-            current,
-            `改善案（具体的内容）`,
-            proposal,
-            `期待される効果（定量／定性）`,
-            effect,
-            `必要コスト・リソース`,
-            cost
+            `背景：現状`, current,
+            `改善案（具体的内容）`, proposal,
+            `期待される効果（定量／定性）`, effect,
+            `必要コスト・リソース`, cost
           ];
           const subject  = "【改善提案】" + title;
           const bodyText = bodyLines.join('\n\n');
 
-          // メールクライアント起動
-          const mailtoLink =
-            `mailto:${MAILTO_ADDRESS}` +
-            `?subject=${encodeURIComponent(subject)}` +
-            `&body=${encodeURIComponent(bodyText)}`;
-
+          // mailto で起動
+          const mailtoLink = [
+            `mailto:${MAILTO_ADDRESS}`,
+            `?subject=${encodeURIComponent(subject)}`,
+            `&body=${encodeURIComponent(bodyText)}`
+          ].join('');
           window.location.href = mailtoLink;
-        }
-        catch (err) {
+
+        } catch (err) {
           alert(err);
         }
       });
