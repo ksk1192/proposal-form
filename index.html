@@ -4,72 +4,85 @@
   <meta charset="UTF-8">
   <title>改善提案フォーム</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <!-- CSSはこの下に記載 -->
-<style>
-  body {
-    font-family: sans-serif;
-    margin: 1em;
-  }
-  form {
-    max-width: 600px;
-    width: 100%;
-    margin: auto;
-  }
-  input, textarea, button {
-    width: 100%;
-    font-size: 16px;
-    padding: 0.6em;
-    box-sizing: border-box;
-  }
-  button {
-    min-height: 44px;
-    margin-top: 1em;
-  }
-</style>
-
-
-
-
-
-
-
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 1em;
+    }
+    form {
+      max-width: 600px;
+      width: 100%;
+      margin: auto;
+    }
+    input, textarea, button {
+      width: 100%;
+      font-size: 16px;
+      padding: 0.6em;
+      box-sizing: border-box;
+    }
+    button {
+      min-height: 44px;
+      margin-top: 1em;
+    }
+  </style>
 </head>
-  
-
 <body>
- <form method="POST" action="/submit-proposal">
-  <div>
-    <label>提出日</label>
-    <input type="date" name="date" required>
-  </div>
-  <div>
-    <label>提出者氏名</label>
-    <input type="text" name="name" placeholder="例：山田 太郎" required>
-  </div>
-  <div>
-    <label>議題タイトル</label>
-    <input type="text" name="title" placeholder="例：会議資料のデジタル化" required>
-  </div>
-  <div>
-    <label>背景：現状</label>
-    <textarea name="current" required></textarea>
-  </div>
-  <div>
-    <label>改善案（具体的内容）</label>
-    <textarea name="proposal" required></textarea>
-  </div>
-  <div>
-    <label>期待される効果（定量／定性）</label>
-    <textarea name="effect" required></textarea>
-  </div>
-  <div>
-    <label>必要コスト・リソース</label>
-    <textarea name="cost" required></textarea>
-  </div>
-  <button type="submit">送信</button>
-</form>
+  <form id="proposalForm"
+        method="GET"
+        action="mailto:kaizen@yourcompany.co.jp"
+        enctype="text/plain">
+    
+    <div>
+      <label for="date">提出日</label>
+      <input type="date" id="date" name="date" required>
+    </div>
 
+    <div>
+      <label for="name">提出者氏名</label>
+      <input type="text" id="name" name="name"
+             placeholder="例：山田 太郎" required>
+    </div>
 
- <!-- フォームはこの中に記載 -->
+    <div>
+      <label for="title">議題タイトル</label>
+      <input type="text" id="title" name="title"
+             placeholder="例：会議資料のデジタル化" required>
+    </div>
+
+    <div>
+      <label for="current">背景：現状</label>
+      <textarea id="current" name="current" required></textarea>
+    </div>
+
+    <div>
+      <label for="proposal">改善案（具体的内容）</label>
+      <textarea id="proposal" name="proposal" required></textarea>
+    </div>
+
+    <div>
+      <label for="effect">期待される効果（定量／定性）</label>
+      <textarea id="effect" name="effect" required></textarea>
+    </div>
+
+    <div>
+      <label for="cost">必要コスト・リソース</label>
+      <textarea id="cost" name="cost" required></textarea>
+    </div>
+
+    <button type="submit">送信</button>
+  </form>
+
+  <script>
+    document.getElementById('proposalForm')
+      .addEventListener('submit', function(e) {
+        // 議題タイトルを取得し、件名パラメータに追加
+        var titleInput = document.querySelector('input[name="title"]');
+        var subject = '【改善提案】' + titleInput.value;
+        // エンコードして action 属性を更新
+        this.action = 'mailto:kaizen@yourcompany.co.jp'
+                    + '?subject=' + encodeURIComponent(subject);
+      });
+  </script>
 </body>
 </html>
+
