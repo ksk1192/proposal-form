@@ -4,6 +4,17 @@
   <meta charset="UTF-8">
   <title>改善提案フォーム</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <!-- Content Security Policy -->
+  <meta http-equiv="Content-Security-Policy"
+        content="
+          default-src 'self';
+          script-src 'self';
+          style-src 'self';
+          object-src 'none';
+          base-uri 'self';
+        ">
+
   <style>
     body { 
       font-family: sans-serif; 
@@ -34,26 +45,29 @@
 </head>
 <body>
   <form id="proposalForm">
+    <!-- Honeypot field (bot 対策) -->
+    <input type="text" id="hp_phone" name="hp_phone" autocomplete="off" style="display:none">
+
     <label for="date">提出日</label>
     <input type="date" id="date" name="date" required>
 
     <label for="name">提出者氏名</label>
-    <input type="text" id="name" name="name" placeholder="例：山田 太郎" required>
+    <input type="text" id="name" name="name" placeholder="例：山田 太郎" maxlength="50" required>
 
     <label for="title">議題タイトル</label>
-    <input type="text" id="title" name="title" placeholder="例：会議資料のデジタル化" required>
+    <input type="text" id="title" name="title" placeholder="例：会議資料のデジタル化" maxlength="100" required>
 
     <label for="current">背景：現状</label>
-    <textarea id="current" name="current" required></textarea>
+    <textarea id="current" name="current" maxlength="1000" required></textarea>
 
     <label for="proposal">改善案（具体的内容）</label>
-    <textarea id="proposal" name="proposal" required></textarea>
+    <textarea id="proposal" name="proposal" maxlength="1000" required></textarea>
 
     <label for="effect">期待される効果（定量／定性）</label>
-    <textarea id="effect" name="effect" required></textarea>
+    <textarea id="effect" name="effect" maxlength="1000" required></textarea>
 
     <label for="cost">必要コスト・リソース</label>
-    <textarea id="cost" name="cost" required></textarea>
+    <textarea id="cost" name="cost" maxlength="1000" required></textarea>
 
     <button type="submit">送信</button>
   </form>
@@ -63,41 +77,70 @@
       const form = document.getElementById('proposalForm');
       const MAILTO_ADDRESS = "keisuke.tojyo@shinko-jp.biz";
 
+      function sanitize(str) {
+        return str.replace(/<[^>]*>?/gm, '').trim();
+      }
+
+      function validateField(id, maxLen) {
+        const el = document.getElementById(id);
+        const v = sanitize(el.value);
+        if (!v || v.length > maxLen) {
+          throw `${el.previousElementSibling.textContent} は 1〜${maxLen}文字で入力してください。`;
+        }
+        return v;
+      }
+
       form.addEventListener('submit', function(e) {
         e.preventDefault();
 
-        const date     = document.getElementById('date').value;
-        const name     = document.getElementById('name').value.trim();
-        const title    = document.getElementById('title').value.trim();
-        const current  = document.getElementById('current').value.trim();
-        const proposal = document.getElementById('proposal').value.trim();
-        const effect   = document.getElementById('effect').value.trim();
-        const cost     = document.getElementById('cost').value.trim();
+        try {
+          // Honeypot チェック
+          if (document.getElementById('hp_phone').value) {
+            throw '不正な送信が検出されました。';
+          }
 
-        const bodyLines = [
-          `提出日: ${date}`,
-          `提出者氏名: ${name}`,
-          `議題タイトル: ${title}`,
-          `背景：現状`,
-          current,
-          `改善案（具体的内容）`,
-          proposal,
-          `期待される効果（定量／定性）`,
-          effect,
-          `必要コスト・リソース`,
-          cost
-        ];
+          // 日付チェック
+          const date = document.getElementById('date').value;
+          if (!date) {
+            throw '提出日を選択してください。';
+          }
 
-        const subject  = "【改善提案】" + title;
-        const bodyText = bodyLines.join('\n\n');
+          // 各フィールドのバリデーション＆サニタイズ
+          const name     = validateField('name', 50);
+          const title    = validateField('title', 100);
+          const current  = validateField('current', 1000);
+          const proposal = validateField('proposal', 1000);
+          const effect   = validateField('effect', 1000);
+          const cost     = validateField('cost', 1000);
 
-        // メールクライアントを起動
-        const mailtoLink =
-          `mailto:${MAILTO_ADDRESS}` +
-          `?subject=${encodeURIComponent(subject)}` +
-          `&body=${encodeURIComponent(bodyText)}`;
+          // メール本文組み立て
+          const bodyLines = [
+            `提出日: ${date}`,
+            `提出者氏名: ${name}`,
+            `議題タイトル: ${title}`,
+            `背景：現状`,
+            current,
+            `改善案（具体的内容）`,
+            proposal,
+            `期待される効果（定量／定性）`,
+            effect,
+            `必要コスト・リソース`,
+            cost
+          ];
+          const subject  = "【改善提案】" + title;
+          const bodyText = bodyLines.join('\n\n');
 
-        window.location.href = mailtoLink;
+          // メールクライアント起動
+          const mailtoLink =
+            `mailto:${MAILTO_ADDRESS}` +
+            `?subject=${encodeURIComponent(subject)}` +
+            `&body=${encodeURIComponent(bodyText)}`;
+
+          window.location.href = mailtoLink;
+        }
+        catch (err) {
+          alert(err);
+        }
       });
     })();
   </script>
